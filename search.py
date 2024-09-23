@@ -2,9 +2,10 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import time
-
-# Base URL for the /b/ board on 4chan, change however you like.
 base_url = 'https://boards.4chan.org/b/'
+pagy = 1
+temp_url = 'https://boards.4chan.org/b/'
+
 def scrape_thread(thread_url):
     try:
         response = requests.get(thread_url)
@@ -23,8 +24,9 @@ def scrape_thread(thread_url):
     except Exception as e:
         print(f"Error scraping {thread_url}: {e}")
         return None
+
 def scrape_board_page():
-    response = requests.get(base_url)
+    response = requests.get(temp_url)
     soup = BeautifulSoup(response.text, 'html.parser')
     threads = soup.find_all('a', class_='replylink')
     thread_data = []
@@ -37,12 +39,15 @@ def scrape_board_page():
             thread_data.append(data)
 
     return thread_data
+
 def continuous_crawl(output_file='data.json'):
+    global pagy, temp_url
+
     all_data = []
 
     try:
         while True:
-            print("Scraping /b/ board...")
+            print(f"Scraping /b/ board on page {pagy}...")
             page_data = scrape_board_page()
             if page_data:
                 all_data.extend(page_data)
@@ -50,10 +55,14 @@ def continuous_crawl(output_file='data.json'):
                     json.dump(all_data, f, indent=4)
                 
                 print(f"Data scraped and saved to {output_file}.")
+                pagy = pagy + 1
+                temp_url = base_url + str(pagy)
             else:
                 print("No data found.")
-                           # Sleep before scraping again to avoid getting blocked
-            time.sleep(1)  # Adjust the time as necessary
+                pagy = pagy + 1
+                temp_url = base_url + str(pagy)
+            time.sleep(1)
     except KeyboardInterrupt:
         print("Crawling interrupted. Data saved.")
+
 continuous_crawl()
